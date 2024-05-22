@@ -15,8 +15,8 @@ This repository contains a Python-based network traffic sniffer for WarRock. It 
 1. **Clone the repository**:
 
     ```bash
-    git clone https://github.com/yourusername/WarRockNetSniffer.git
-    cd WarRockNetSniffer
+    git clone https://github.com/Myth7x/warrock-insight.git
+    cd warrock-insight
     ```
 
 2. **Create a virtual environment** (optional but recommended):
