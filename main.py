@@ -17,7 +17,7 @@ def main():
         try:
             with pydivert.WinDivert("tcp.SrcPort == 10375") as w:
                 for packet in w:
-                    w.send(ph.handle_packet(time.time(), packet))
+                    w.send(ph.handle(time.time(), packet))
         except KeyboardInterrupt: break
         except Exception as e:
             logging.error(e)
