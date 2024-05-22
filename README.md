@@ -36,3 +36,12 @@ This repository contains a Python-based network traffic sniffer for WarRock. It 
 
 This script requires elevated privileges to capture and analyze network traffic. Ensure you run the script with administrator/root rights.
 
+
+## Current Progress
+
+- [x] Capture game related network traffic
+- [x] Initial testing of packet capturing
+- [x] Find and extract player index
+- [x] Find and extract player coordinates
+- [ ] Find and extract player rotation
+
