@@ -66,12 +66,20 @@ class PacketHandler(object):
                 return _packet
 
             try:
+                print(_payload[22])
+                print(_payload[23])
+                print(_payload[24])
+                print(_payload[25])
                 _x = int.from_bytes(_payload[22:25], "big")
             except Exception as e:
                 logging.error(e)
                 return _packet
 
             try:
+                print(_payload[28])
+                print(_payload[29])
+                print(_payload[30])
+                print(_payload[31])
                 _y = int.from_bytes(_payload[28:31], "big")
             except Exception as e:
                 logging.error(e)
@@ -90,7 +98,8 @@ class PacketHandler(object):
                 _self.players[_id] = Player(_id, _x, _y)
             else:
                 _self.players[_id].update_position(_time, _x, _y)
-                
+                logging.debug(f"Player {_id} at ({_x}, {_y}) Packet Payload: {_payload}")
+
             return _packet
         packet = _game_update(self, _time, _packet)
 
