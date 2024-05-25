@@ -159,6 +159,9 @@
         var hold_selected = [];
         function on_select_click(event) {
             const col_index = $(event.target).text();
+            if (!col_index.isNumber()) {
+                return;
+            }
             console.log('Hold selected', col_index);
             if (!hold_selected.includes(col_index)) {
                 hold_selected.push(col_index);
@@ -206,6 +209,9 @@
             const is_shift = event.shiftKey;
             if (!is_shift) {
                 const col_index = $(event.target).text();
+                if (isNaN(col_index)) {
+                    return;
+                }
                 if (hidden_columns.includes(col_index)) {
                     hidden_columns = hidden_columns.filter(item => item !== col_index);
                 } else {
@@ -291,6 +297,10 @@
         }
 
         $(document).ready(function() {
+            // set to inputs
+            $('#hidden-columns').val(hidden_columns.join(', '));
+            $('#combination-type-rules').val(JSON.stringify(combine_rules));
+
             $('#table-header').on('mousedown', 'th', function(event) {
                 const is_shift = event.shiftKey;
                 if (is_shift) {
