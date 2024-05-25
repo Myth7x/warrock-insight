@@ -117,24 +117,19 @@
 
         function hide_columns() {
             hidden_columns = $('#hidden-columns').val().split(',').map(item => parseInt(item));
-            console.log('Hiding columns', hidden_columns);
             for (let i = 0; i < hidden_columns.length; i++) {
-                console.log('Hiding column', hidden_columns[i]);
-
-                let position = null; // find in data
+                let position = null;
                 for (let b_pos in payload_data[current_time]) {
                     if (b_pos.toString() === hidden_columns[i].toString()) {
                         position = b_pos;
                         break;
                     }
                 }
-                console.log('Position', position);
                 if (position !== null) {
                     $(`#table-header th`).each(function() {
                         if ($(this).text() === position.toString()) {
                             $(this).hide();
                             const body_cells = $(`#table-body td:nth-child(${parseInt($(this).index()) + 1})`);
-                            console.log('Hiding body cells', body_cells);
                             body_cells.each(function() {
                                 $(this).hide();
                             });
@@ -162,7 +157,6 @@
             if (!col_index.isNumber()) {
                 return;
             }
-            console.log('Hold selected', col_index);
             if (!hold_selected.includes(col_index)) {
                 hold_selected.push(col_index);
             }
