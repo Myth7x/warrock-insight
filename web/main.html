@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Payload Inspector</title>
+
+    <!-- jquery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        var hidden_columns = [69, 2, 3, 4];
+        var combine_rules = [{"columns":[28,29,30],"name":"y","type":"uint32"},{"columns":[22,23,24],"name":"x","type":"uint32"},{"columns":[7, 8],"name":"id","type":"uint32"},{"columns":[5,6],"name":"sub_header","type":"uint32"},{"columns":[0,1],"name":"header","type":"uint32"}];
+        const payload_data = {};
+        const current_time = new Date().getTime();
+        payload_data[current_time] = [
+            222, 70, 0, 0, 0,
+            49, 61, 0, 13, 73,
+            15, 224, 61, 129, 93,
+            0, 60, 0, 1, 0,
+            29, 241, 62, 69, 0,
+            81, 61, 140, 80, 69,
+            129, 93, 224, 189, 0,
+            0, 0, 0, 86, 245,
+            62, 69, 127, 84, 242,
+            171, 80, 69, 2, 34,
+            62, 69, 168, 84, 102,
+            122, 74, 69, 147, 83,
+            187, 8, 0, 79, 4,
+            0, 40, 0, 74, 237
+        ];
+
+        function clear_table() {
+            $('#table-header').html('');
+            $('#table-body').html('');
+            $('#table-header').append(`<tr><th>No Data</th></tr>`);
+        }
+
+        function generate_head_row() {
+            let header_html = '<tr>';
+            var applied_combinations = [];
+            for (let key in payload_data) {
+                for (let i = 0; i < payload_data[key].length; i++) {
+                        const combined = combine_rules.find(rule => rule.columns.includes(i));
+                        var is_in_combination = false;
+                        for (let j = 0; j < combine_rules.length; j++) {
+                            if (combine_rules[j].columns.includes(i)) {
+                                is_in_combination = true;
+                                break;
+                            }
+                        }
+                        if (combined && !is_in_combination || combined && !applied_combinations.includes(combined)) {
+                            applied_combinations.push(combined);
+                            header_html += `<th>${combined.name}</th>`;
+                        } else if (combined === undefined && !is_in_combination) {
+                            header_html += `<th>${i}</th>`;
+                        }
+
+                }
+            }
+            header_html += '</tr>';
+            return header_html;
+        }
+
+        function generate_body_row() {
+            let body_html = '';
+            var applied_combinations = [];
+            for (let key in payload_data) {
+                body_html += '<tr>';
+                for (let i = 0; i < payload_data[key].length; i++) {
+                        const combined = combine_rules.find(rule => rule.columns.includes(i));
+                        var is_in_combination = false;
+                        for (let j = 0; j < combine_rules.length; j++) {
+                            if (combine_rules[j].columns.includes(i)) {
+                                is_in_combination = true;
+                                break;
+                            }
+                        }
+                        if (combined && !is_in_combination || combined && !applied_combinations.includes(combined)) {
+                            applied_combinations.push(combined);
+                            const columns = combined.columns;
+                            const values = columns.map(col => payload_data[key][col]);
+                            let result = null;
+                            if (combined.type === 'uint32') { // int.from_bytes([62, 69, 0], byteorder='big', signed=False)     == 4080896
+                                result = values.reduce((acc, val) => acc * 256 + val, 0);
+                            } else if (combined.type === 'int') { // int.from_bytes([62, 69, 0], byteorder='big', signed=True)     == 4080896
+                                result = values.reduce((acc, val) => acc * 256 + val, 0);
+                                if (result > 2147483647) {
+                                    result = result - 4294967296;
+                                }
+                            } else if (combined.type === 'float') { // struct.unpack('f', struct.pack('I', 4080896))[0] == 2.0
+                                const bytes = values.map(val => val.toString(16).padStart(2, '0')).join('');
+                                const buffer = new ArrayBuffer(4);
+                                const view = new DataView(buffer);
+                                view.setUint32(0, parseInt(bytes, 16), false);
+                                result = view.getFloat32(0, false);
+                            } else if (combined.type === 'str') {
+                                var chars = '';
+                                for (let j = 0; j < values.length; j++) {
+                                    chars += String.fromCharCode(values[j]);
+                                }
+                                result = chars;
+                            }
+                            body_html += `<td>${result}</td>`;
+                        } else if (combined === undefined && !is_in_combination) {
+                            body_html += `<td>${payload_data[key][i]}</td>`;
+                        }
+
+                }
+                body_html += '</tr>';
+            }
+            return body_html;
+        }
+
+        function hide_columns() {
+            hidden_columns = $('#hidden-columns').val().split(',').map(item => parseInt(item));
+            console.log('Hiding columns', hidden_columns);
+            for (let i = 0; i < hidden_columns.length; i++) {
+                console.log('Hiding column', hidden_columns[i]);
+
+                let position = null; // find in data
+                for (let b_pos in payload_data[current_time]) {
+                    if (b_pos.toString() === hidden_columns[i].toString()) {
+                        position = b_pos;
+                        break;
+                    }
+                }
+                console.log('Position', position);
+                if (position !== null) {
+                    $(`#table-header th`).each(function() {
+                        if ($(this).text() === position.toString()) {
+                            $(this).hide();
+                            const body_cells = $(`#table-body td:nth-child(${parseInt($(this).index()) + 1})`);
+                            console.log('Hiding body cells', body_cells);
+                            body_cells.each(function() {
+                                $(this).hide();
+                            });
+                        }
+                    });
+
+                }
+
+
+            }
+        }
+
+        function update_table() {
+            clear_table();
+            const header = $('#table-header');
+            header.html(generate_head_row());
+            const body = $('#table-body');
+            body.html(generate_body_row());
+            hide_columns();
+        }
+
+        var hold_selected = [];
+        function on_select_click(event) {
+            const col_index = $(event.target).text();
+            console.log('Hold selected', col_index);
+            if (!hold_selected.includes(col_index)) {
+                hold_selected.push(col_index);
+            }
+        }
+
+        function on_end_selected_click(event) {
+            const popup = create_combine_popup();
+            const selected_columns = hold_selected;
+            selected_columns.sort((a, b) => a - b);
+            const input_columns = $(popup).find('#combine-columns');
+            input_columns.val(selected_columns.join(', '));
+            const input_value = $(popup).find('#combine-value');
+            const calculate_value = function() {
+                const columns = input_columns.val().split(',').map(item => parseInt(item));
+                const values = columns.map(col => payload_data[current_time][col]);
+                const type = $(popup).find('#combine-type').val();
+                let result = null;
+                if (type === 'uint32') { // int.from_bytes([62, 69, 0], byteorder='big', signed=False)     == 4080896
+                    result = values.reduce((acc, val) => acc * 256 + val, 0);
+                } else if (type === 'int') { // int.from_bytes([62, 69, 0], byteorder='big', signed=True)     == 4080896
+                    result = values.reduce((acc, val) => acc * 256 + val, 0);
+                    if (result > 2147483647) {
+                        result = result - 4294967296;
+                    }
+                } else if (type === 'float') { // struct.unpack('f', struct.pack('I', 4080896))[0] == 2.0
+                    const bytes = values.map(val => val.toString(16).padStart(2, '0')).join('');
+                    const buffer = new ArrayBuffer(4);
+                    const view = new DataView(buffer);
+                    view.setUint32(0, parseInt(bytes, 16), false);
+                    result = view.getFloat32(0, false);
+                } else if (type === 'str') {
+                    result = values.map(val => String.fromCharCode(val)).join('');
+                }
+                input_value.val(result);
+            };
+            $(popup).find('#combine-type').on('change', calculate_value);
+
+            $('body').append(popup);
+            hold_selected = [];
+            $(popup).find('#combine-type').trigger('change');
+        }
+
+        function on_head_col_click(event) {
+            const is_shift = event.shiftKey;
+            if (!is_shift) {
+                const col_index = $(event.target).text();
+                if (hidden_columns.includes(col_index)) {
+                    hidden_columns = hidden_columns.filter(item => item !== col_index);
+                } else {
+                    hidden_columns.push($(event.target).text());
+                }
+
+                $('#hidden-columns').val(hidden_columns.join(', '));
+                hidden_columns = hidden_columns.filter(item => typeof item === 'number');
+                update_table();
+            }
+        }
+
+        function on_hide_all_columns() {
+            hidden_columns = Array.from({length: payload_data[current_time].length}, (_, i) => i);
+            $('#hidden-columns').val(hidden_columns.join(', '));
+            update_table();
+        }
+
+        function create_combine_popup() {
+            const on_close = function() {
+                $('#combine-popup').remove();
+                reset_current_hold_selected();
+            };
+
+            const popup = document.createElement('div');
+            popup.id = 'combine-popup';
+            popup.style.position = 'absolute';
+            popup.style.top = '0';
+            popup.style.left = '0';
+            popup.style.width = '100%';
+            popup.style.height = '100%';
+            popup.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            popup.style.zIndex = '1000';
+            popup.style.display = 'flex';
+            popup.style.justifyContent = 'center';
+            popup.style.alignItems = 'center';
+            popup.innerHTML = `
+                <div style="background-color: white; padding: 20px;">
+                    <h3>Combine Columns</h3>
+                    <input type="text" class="form-control" placeholder="Columns to combine" id="combine-columns">
+                    <input type="text" class="form-control" placeholder="Name of the new column" id="combine-name">
+                    <select class="form-select" id="combine-type">
+                        <option value="uint32">uint32</option>
+                        <option value="int">int</option>
+                        <option value="float">float</option>
+                        <option value="str">str</option>
+                    </select>
+                    <br>
+                    <input type="text" class="form-control" placeholder="Resulting value" id="combine-value" readonly>
+                    <br>
+                    <input type="button" class="btn btn-secondary" value="Cancel" id="cancel-combine">
+                    <input type="button" class="btn btn-primary" value="Add Combined Column" id="add-combine">
+                </div>
+            `;
+            $(popup).find('#cancel-combine').on('click', on_close);
+            $(popup).find('#add-combine').on('click', function() {
+                if ($(popup).find('#combine-name').val() === '') {
+                    alert('Name of the new column is required');
+                    return;
+                }
+                const columns = $(popup).find('#combine-columns').val().split(',').map(item => parseInt(item));
+                const name = $(popup).find('#combine-name').val();
+                const type = $(popup).find('#combine-type').val();
+                combine_rules.push({columns, name, type});
+                $('#combination-type-rules').val(JSON.stringify(combine_rules));
+                on_close();
+                update_table();
+            });
+            return popup;
+        }
+
+        function colorize_current_hold_selected() {
+            for (let i = 0; i < hold_selected.length; i++) {
+                const selected = hold_selected[i];
+                const col_index = $('#table-header th').index($(`#table-header th:contains(${selected})`));
+                $('#table-header th').eq(col_index).css('background-color', 'lightblue');
+            }
+        }
+
+        function reset_current_hold_selected() {
+            hold_selected = [];
+            $('#table-header th').css('background-color', '');
+        }
+
+        $(document).ready(function() {
+            $('#table-header').on('mousedown', 'th', function(event) {
+                const is_shift = event.shiftKey;
+                if (is_shift) {
+                    on_select_click(event);
+                } else {
+                    on_head_col_click(event);
+                }
+            });
+
+            window.onmousemove = function(event) {
+                const is_shift = event.shiftKey;
+                if (hold_selected.length > 0 && !is_shift) {
+                    on_end_selected_click();
+                }
+
+                colorize_current_hold_selected();
+            };
+
+            $('#hidden-columns').on('input', function() {
+                hidden_columns = $(this).val().split(',').map(item => parseInt(item));
+                update_table();
+            });
+            update_table();
+        });
+    </script>
+    <style>
+        table {
+            width: 100%;
+            user-select: none;
+        }
+
+        th {
+            text-align: center;
+        }
+        th:hover {
+            cursor: pointer;
+            background-color: #f0f0f0;
+        }
+
+        td {
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="container-fluid">
+    <h1>Interactive Payload Inspector</h1>
+    <br>
+    <div class="row">
+        <label for="hidden-columns">Click on the column header to hide the column</label>
+        <input type="text" class="form-control" placeholder="Hidden Columns" id="hidden-columns">
+    </div>
+    <br>
+    <div class="row">
+        <label for="combination-type-rules">Shift+Click to select multiple columns to combine and cast as a type</label>
+        <input type="text" class="form-control" placeholder="[]" id="combination-type-rules">
+    </div>
+    <br>
+    <div class="row">
+        <input type="button" class="btn btn-primary" value="Hide all columns" onclick="on_hide_all_columns();">
+    </div>
+    <div class="row" style="overflow-x: auto;">
+        <table class="table table-striped" style="scroll-behavior: auto;">
+            <thead id="table-header">
+
+            </thead>
+            <tbody id="table-body">
+
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
